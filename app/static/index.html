@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mail Classifier Jev</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <h1>Your mail, <em>sorted by Jev.</em></h1>
+  <p class="sub">Category, importance, spam and expected reply. Unread Outlook mail, classified by Jev (TypeSafe AI).</p>
+</header>
+
+<div class="layout">
+  <section class="table-card">
+    <div class="tabs">
+      <button class="tab on" data-tab="mails">Mails</button>
+      <button class="tab" data-tab="senders">By sender</button>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="scroll" id="mails-panel">
+      <table id="mails">
+        <thead>
+          <tr>
+            <th data-sort="from">Mail</th>
+            <th data-sort="category">Category</th>
+            <th data-sort="importance">Importance</th>
+            <th data-sort="spam" class="num">Spam</th>
+            <th data-sort="action_required" class="num">Reply</th>
+            <th data-sort="latency_ms" class="num">Time</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty" hidden>No mail. Click “Fetch new unread mails”, then “Classify mails”.</div>
+    </div>
+    <div class="scroll" id="senders-panel" hidden>
+      <div class="senders-head">
+        <span class="muted small" id="senders-info"></span>
+        <label class="check"><input type="checkbox" id="undecided" checked> Undecided only</label>
+      </div>
+      <table id="senders">
+        <thead><tr><th>Sender</th><th class="num">Mails</th><th class="num">Recent</th><th class="num">Avg. spam</th><th>Decision</th></tr></thead>
+        <tbody id="senders-rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="box">
+      <div class="box-head"><h2>Run</h2><span class="state" id="state">Ready</span></div>
+      <div class="step-head"><b>1 · Fetch</b><span class="muted small" id="pending-hint">&nbsp;</span></div>
+      <button id="fetch" class="wide">Fetch new unread mails</button>
+      <div class="step-head"><b>2 · Classify</b></div>
+      <div class="fields">
+        <label>Mails
+          <select id="mode"><option value="new">Not yet classified</option><option value="all">All (reclassify)</option></select>
+        </label>
+        <label>Parallel requests
+          <select id="conc"><option>1</option><option>4</option><option>8</option><option selected>20</option><option>64</option></select>
+        </label>
+      </div>
+      <button id="run" class="primary">Classify mails <span aria-hidden="true">→</span></button>
+      <div class="error" id="error" hidden></div>
+    </div>
+
+    <div class="box">
+      <div class="box-head"><h3>Progress</h3><span class="muted" id="pct">0%</span></div>
+      <div class="big"><b id="done">0</b> <span id="of">of 0</span></div>
+      <div class="bar"><i id="b2"></i></div>
+      <div class="muted small" id="remain">&nbsp;</div>
+    </div>
+
+    <div class="box">
+      <div class="steps">
+        <div><span>1 · Fetch</span><b id="t1">–</b></div>
+        <div class="muted small" id="i1">Waiting</div>
+        <div><span>2 · Classify</span><b id="t2">–</b></div>
+        <div class="muted small" id="i2">Waiting</div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="box-head"><h3>Latency per mail</h3></div>
+      <svg id="spark" viewBox="0 0 300 56" preserveAspectRatio="none" aria-label="Latency per mail"></svg>
+      <div class="kpis" id="kpis">
+        <div><b id="k-mean">–</b><span>mean</span></div>
+        <div><b id="k-p50">–</b><span>p50</span></div>
+        <div><b id="k-p95">–</b><span>p95</span></div>
+        <div><b id="k-rate">–</b><span>mails/s</span></div>
+        <div><b id="k-tok">–</b><span>tokens</span></div>
+        <div><b id="k-cost">–</b><span>cost</span></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="apply-row">
+        <button id="apply" disabled>Apply (0)</button>
+        <button id="undo" class="ghost" title="Moves the last batch sent to the trash back to the inbox">Undo</button>
+      </div>
+      <div class="muted small">“Awaiting reply” mails get a flag, recent newsletters go to the Newsletter folder, and “Discard” mails go to the trash. Mails that are already flagged are never moved.</div>
+    </div>
+
+    <details class="box" id="runs-panel">
+      <summary>Run history</summary>
+      <div id="agreement" class="muted small"></div>
+      <table id="runs"><thead><tr><th>#</th><th>Mails</th><th>Classify</th><th>Parallel</th><th>mails/s</th><th>Avg. lat.</th></tr></thead><tbody></tbody></table>
+    </details>
+  </aside>
+</div>
+
+<dialog id="detail">
+  <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+  <h2 id="d-subject"></h2>
+  <div class="muted" id="d-from"></div>
+  <div class="d-meta" id="d-meta"></div>
+  <pre id="d-body"></pre>
+  <div class="d-fix">File under: <span id="d-cats"></span></div>
+</dialog>
+
+<dialog id="confirm">
+  <h2 id="c-title"></h2>
+  <ul id="c-summary" class="c-summary"></ul>
+  <div class="error" id="c-warn" hidden></div>
+  <details id="c-details"><summary>Preview of mails to trash</summary><ul id="c-list"></ul></details>
+  <p class="muted small">The trash is reversible (“Undo” or Outlook’s Deleted Items folder). Flags and the Newsletter folder can be undone in Outlook.</p>
+  <div class="dlg-actions"><button id="c-no" class="ghost">Cancel</button><button id="c-yes" class="primary-inline">Apply</button></div>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

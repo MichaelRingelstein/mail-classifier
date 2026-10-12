@@ -1,0 +1,7 @@
+{
+  "newsletter_max_age_days": 30,
+  "newsletters": {
+    "newsletter.example.com": "keep",
+    "promo.example.com": "discard"
+  }
+}

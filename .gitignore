@@ -1,0 +1,9 @@
+.venv/
+.env
+token_cache.json
+data/
+__pycache__/
+.DS_Store
+preferences.json
+credentials.json
+*.tmp
